@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>CCNA 200-301 Study Hub</title>
+
+  <!-- PWA & Cross-Device (Samsung Android + iPadOS) Meta -->
+  <meta name="description" content="Offline-ready CCNA 200-301 study platform for phone and iPad: practice exams, spaced-repetition flashcards, subnetting trainer, and Cisco IOS CLI labs." />
+  <meta name="theme-color" content="#0b1120" id="meta-theme-color" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CCNA Hub" />
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Tablet / iPad / Desktop Left Sidebar -->
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="sidebar-brand">
+        <div class="brand-badge">CCNA</div>
+        <div>
+          <div class="brand-title" data-i18n="appTitle">CCNA 200-301 Hub</div>
+          <div class="brand-sub" data-i18n="appSub">v1.1 Exam Prep</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-view="dashboard">
+          <span class="nav-icon" aria-hidden="true">📊</span>
+          <span data-i18n="navDashboard">Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="practice">
+          <span class="nav-icon" aria-hidden="true">📝</span>
+          <span data-i18n="navPractice">Practice Exams</span>
+        </button>
+        <button class="nav-item" data-view="flashcards">
+          <span class="nav-icon" aria-hidden="true">🃏</span>
+          <span data-i18n="navFlashcards">Flashcards</span>
+          <span class="nav-pill" id="sidebar-due-pill">0</span>
+        </button>
+        <button class="nav-item" data-view="subnetting">
+          <span class="nav-icon" aria-hidden="true">🧮</span>
+          <span data-i18n="navSubnetting">Subnetting</span>
+        </button>
+        <button class="nav-item" data-view="labs">
+          <span class="nav-icon" aria-hidden="true">💻</span>
+          <span data-i18n="navLabs">IOS CLI Labs</span>
+        </button>
+        <button class="nav-item" data-view="sync">
+          <span class="nav-icon" aria-hidden="true">🔄</span>
+          <span data-i18n="navSync">Notes &amp; Sync</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="countdown-mini" id="sidebar-countdown">Exam date not set</div>
+        <div class="sidebar-actions">
+          <button class="btn btn-ghost btn-sm" id="btn-lang-sidebar" type="button">🌐 繁體中文</button>
+          <button class="btn btn-ghost btn-sm" id="btn-install-sidebar" type="button">📱 Install App</button>
+          <button class="btn btn-ghost btn-sm" id="btn-theme-sidebar" type="button" aria-label="Toggle theme">🌙 Theme</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="main-wrap">
+      <!-- Mobile / Top Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="brand-badge mobile-only">CCNA</div>
+          <div>
+            <h1 class="page-title" id="page-title">Dashboard</h1>
+            <p class="page-subtitle" id="page-subtitle">CCNA 200-301 Readiness Overview</p>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-secondary btn-sm" id="btn-lang-top" type="button" title="Switch Language">繁中</button>
+          <button class="icon-btn mobile-only" id="btn-sync-top" type="button" title="Notes & Sync">🔄</button>
+          <button class="icon-btn" id="btn-install-top" type="button" title="Install on Samsung or iPad">📲</button>
+          <button class="icon-btn" id="btn-theme-top" type="button" title="Toggle Dark/Light Theme">🌙</button>
+        </div>
+      </header>
+
+      <main class="content" id="main-content">
+        <!-- ==================== DASHBOARD VIEW ==================== -->
+        <section class="view active" id="view-dashboard">
+          <div class="hero-grid">
+            <div class="card hero-card">
+              <div class="hero-top">
+                <div>
+                  <span class="badge badge-cyan">CCNA 200-301 v1.1</span>
+                  <h2 class="hero-heading" data-i18n="examReadiness">Exam Readiness</h2>
+                  <p class="muted" id="readiness-label">Start answering questions and reviewing cards to calculate your weighted readiness.</p>
+                </div>
+                <div class="readiness-ring" id="readiness-ring">
+                  <span class="readiness-pct" id="readiness-pct">0%</span>
+                </div>
+              </div>
+              <div class="hero-actions">
+                <button class="btn btn-primary" id="btn-quick-quiz" type="button" data-i18n="quickQuizBtn">▶ Quick 10-Question Drill</button>
+                <button class="btn btn-secondary" id="btn-hot-quiz" type="button" data-i18n="hotQuizBtn">🔥 Hot Questions Drill</button>
+                <button class="btn btn-secondary" id="btn-weak-drill" type="button" data-i18n="weakDrillBtn">🎯 Drill Weakest Domain</button>
+                <button class="btn btn-secondary" id="btn-due-cards" type="button"><span data-i18n="dueCardsBtnPrefix">🃏 Review Due Cards</span> (<span id="dash-due-count">0</span>)</button>
+              </div>
+            </div>
+
+            <div class="card stats-card">
+              <div class="stat-grid">
+                <div class="stat-box">
+                  <div class="stat-value" id="stat-streak">0d</div>
+                  <div class="stat-label" data-i18n="studyStreak">Study Streak</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-value" id="stat-accuracy">0%</div>
+                  <div class="stat-label" data-i18n="quizAccuracy">Quiz Accuracy</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-value" id="stat-cards-mastered">0/60</div>
+                  <div class="stat-label" data-i18n="cardsMastered">Cards Mastered</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-value" id="stat-labs-done">0/20</div>
+                  <div class="stat-label" data-i18n="cliLabsDone">CLI Labs Done</div>
+                </div>
+              </div>
+              <div class="exam-date-row">
+                <label for="input-exam-date" class="muted" data-i18n="targetExamDate">Target Exam Date:</label>
+                <input type="date" id="input-exam-date" class="input input-sm" />
+                <span class="badge badge-amber" id="dash-countdown-badge">Set a date</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3 data-i18n="officialDomains">Official 6 Exam Domains</h3>
+                <p class="muted" data-i18n="tapDomainHint">Tap any domain to launch a focused quiz</p>
+              </div>
+              <span class="muted" data-i18n="totalQuestionsCount">506 Practice Items</span>
+            </div>
+            <div class="domain-grid" id="dashboard-domains"></div>
+          </div>
+
+          <div class="card" id="exam-history-card">
+            <div class="card-header">
+              <h3 data-i18n="recentExams">Recent Exam Simulations</h3>
+              <button class="btn btn-ghost btn-sm" id="btn-go-sync-from-dash" type="button" data-i18n="syncPhoneIpad">Sync Samsung ↔ iPad</button>
+            </div>
+            <div id="exam-history-list" class="history-list">
+              <p class="muted">No timed exam simulations completed yet.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== PRACTICE EXAMS VIEW ==================== -->
+        <section class="view" id="view-practice">
+          <!-- Quiz Launcher -->
+          <div id="quiz-setup" class="card">
+            <div class="card-header">
+              <div>
+                <h2 data-i18n="practiceTitle">Practice Exams &amp; Topic Quizzes</h2>
+                <p class="muted" data-i18n="practiceDesc">Immediate feedback in Study Mode, or timed test simulation in Exam Mode.</p>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="field">
+                <label for="quiz-source-filter" data-i18n="sourceSet">Question Bank Source</label>
+                <select id="quiz-source-filter" class="input">
+                  <option value="all" data-i18n="sourceAll">All 2026 PDF Items (506)</option>
+                  <option value="hot" data-i18n="sourceHot">🔥 Hot Questions Only (225)</option>
+                  <option value="mcq" data-i18n="sourceMcq">MCQ / Multi-Select Only (463)</option>
+                  <option value="exhibit" data-i18n="sourceExhibit">With Exhibit Diagrams (188)</option>
+                  <option value="dragdrop" data-i18n="sourceDragDrop">Drag &amp; Drop Diagrams (43)</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="quiz-domain-select" data-i18n="examDomain">Exam Domain</label>
+                <select id="quiz-domain-select" class="input">
+                  <option value="all" data-i18n="allDomainsMix">All 6 Domains (Weighted Mix)</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="quiz-filter-select" data-i18n="questionFilter">Question Filter</label>
+                <select id="quiz-filter-select" class="input">
+                  <option value="all" data-i18n="filterAll">All Questions</option>
+                  <option value="unanswered" data-i18n="filterUnanswered">Unanswered / New Only</option>
+                  <option value="missed" data-i18n="filterMissed">Previously Missed Only</option>
+                  <option value="bookmarked" data-i18n="filterBookmarked">Bookmarked Only</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="quiz-count-select" data-i18n="questionCount">Question Count</label>
+                <select id="quiz-count-select" class="input">
+                  <option value="10" data-i18n="count10">10 Questions (Quick Drill)</option>
+                  <option value="25" data-i18n="count25">25 Questions</option>
+                  <option value="50" data-i18n="count50">50 Questions</option>
+                  <option value="100" data-i18n="count100">100 Questions (Exam Sim)</option>
+                  <option value="all" data-i18n="countAll">All Matching Questions</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="quiz-mode-select" data-i18n="sessionMode">Session Mode</label>
+                <select id="quiz-mode-select" class="input">
+                  <option value="study" data-i18n="modeStudy">Study Mode (Instant Explanations)</option>
+                  <option value="exam" data-i18n="modeExam">Exam Simulation (Timed, Score at End)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="quiz-start-row">
+              <button class="btn btn-primary btn-lg" id="btn-start-quiz" type="button" data-i18n="startSession">Start Session</button>
+              <span class="muted" id="quiz-pool-count">506 matching questions available</span>
+            </div>
+          </div>
+
+          <!-- Active Quiz Runner -->
+          <div id="quiz-runner" class="hidden">
+            <div class="quiz-toolbar card">
+              <div class="quiz-meta">
+                <span class="badge badge-cyan" id="quiz-progress-badge">Question 1 / 10</span>
+                <span class="badge" id="quiz-domain-badge">Domain</span>
+                <span class="badge badge-hot hidden" id="quiz-hot-badge" data-i18n="hotBadge">🔥 HOT</span>
+                <span class="badge hidden" id="quiz-source-badge">PDF</span>
+                <span class="badge badge-amber hidden" id="quiz-timer-badge">⏱ 00:00</span>
+              </div>
+              <div class="quiz-tool-actions">
+                <button class="btn btn-ghost btn-sm" id="btn-bookmark-q" type="button">☆ Bookmark</button>
+                <button class="btn btn-ghost btn-sm" id="btn-quit-quiz" type="button" data-i18n="exit">✕ Exit</button>
+              </div>
+            </div>
+
+            <div class="card quiz-card">
+              <div class="quiz-prompt" id="quiz-prompt"></div>
+              <div class="exhibit-card hidden" id="quiz-exhibit-wrap">
+                <div class="exhibit-header">
+                  <span class="badge badge-cyan" data-i18n="exhibitLabel">Topology / Exhibit</span>
+                  <span class="muted exhibit-zoom-hint" data-i18n="tapZoomHint">Tap image to zoom</span>
+                </div>
+                <img id="quiz-exhibit-img" class="exhibit-img" src="" alt="Exam Question Exhibit" loading="lazy" />
+              </div>
+              <div class="quiz-hint muted hidden" id="quiz-multi-hint" data-i18n="multiHint">Select all required answers, then tap Check Answer.</div>
+              <div class="quiz-options" id="quiz-options"></div>
+              <div class="dd-wrap hidden" id="quiz-dd-wrap">
+                <div class="exhibit-card">
+                  <div class="exhibit-header">
+                    <span class="badge badge-cyan" data-i18n="ddPromptLabel">Drag &amp; Drop Diagram</span>
+                    <span class="muted exhibit-zoom-hint" data-i18n="tapZoomHint">Tap image to zoom</span>
+                  </div>
+                  <img id="dd-q-img" class="exhibit-img" src="" alt="Drag and Drop Question Diagram" />
+                </div>
+                <div class="dd-actions">
+                  <button class="btn btn-primary" id="btn-dd-reveal" type="button" data-i18n="ddRevealBtn">Show Official Answer Diagram</button>
+                </div>
+                <div class="dd-answer hidden" id="dd-a-wrap">
+                  <div class="exhibit-card exhibit-card-answer">
+                    <div class="exhibit-header">
+                      <span class="badge badge-green" data-i18n="ddAnswerLabel">Official Answer</span>
+                      <span class="muted exhibit-zoom-hint" data-i18n="tapZoomHint">Tap image to zoom</span>
+                    </div>
+                    <img id="dd-a-img" class="exhibit-img" src="" alt="Drag and Drop Answer Diagram" />
+                  </div>
+                  <div class="dd-grade-row" id="dd-grade-row">
+                    <span class="muted" data-i18n="ddSelfCheckPrompt">How did you do?</span>
+                    <div class="dd-grade-btns">
+                      <button class="btn btn-secondary" id="btn-dd-wrong" type="button" data-i18n="ddGotWrong">✕ Needs Review</button>
+                      <button class="btn btn-primary" id="btn-dd-right" type="button" data-i18n="ddGotRight">✓ Got It Right</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="quiz-controls">
+                <button class="btn btn-secondary" id="btn-prev-q" type="button" data-i18n="prevBtn">← Previous</button>
+                <div class="quiz-controls-right">
+                  <button class="btn btn-primary" id="btn-submit-q" type="button" data-i18n="checkBtn">Check Answer</button>
+                  <button class="btn btn-primary hidden" id="btn-next-q" type="button" data-i18n="nextBtn">Next Question →</button>
+                </div>
+              </div>
+
+              <div class="quiz-explanation hidden" id="quiz-explanation">
+                <div class="exp-status" id="quiz-exp-status"></div>
+                <p id="quiz-exp-text"></p>
+                <div class="exp-tip" id="quiz-exp-tip"></div>
+              </div>
+            </div>
+
+            <div class="card quiz-nav-strip">
+              <div class="nav-dots" id="quiz-nav-dots"></div>
+              <button class="btn btn-secondary btn-sm" id="btn-finish-quiz" type="button" data-i18n="finishBtn">Finish &amp; Grade Session</button>
+            </div>
+          </div>
+
+          <!-- Quiz Summary -->
+          <div id="quiz-summary" class="card hidden">
+            <div class="summary-header">
+              <div>
+                <span class="badge badge-cyan" data-i18n="sessionComplete">Session Complete</span>
+                <h2 id="summary-score-title">Score: 0 / 0 (0%)</h2>
+                <p class="muted" id="summary-subtitle"></p>
+              </div>
+              <div class="summary-actions">
+                <button class="btn btn-primary" id="btn-review-missed" type="button" data-i18n="reviewMissed">Review Missed</button>
+                <button class="btn btn-secondary" id="btn-new-quiz" type="button" data-i18n="newSession">New Session</button>
+              </div>
+            </div>
+            <div class="domain-grid" id="summary-domain-breakdown"></div>
+          </div>
+        </section>
+
+        <!-- ==================== FLASHCARDS VIEW ==================== -->
+        <section class="view" id="view-flashcards">
+          <div class="card fc-controls-card">
+            <div class="fc-filters">
+              <select id="fc-domain-filter" class="input input-sm">
+                <option value="all" data-i18n="allDomains">All Domains</option>
+              </select>
+              <select id="fc-deck-mode" class="input input-sm">
+                <option value="due" data-i18n="fcDueMode">Due for Review</option>
+                <option value="all" data-i18n="fcAllMode">Browse All Cards</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" id="btn-open-add-card" type="button" data-i18n="addCustomCard">+ Custom Card</button>
+            </div>
+            <div class="fc-stats-row">
+              <span class="badge badge-cyan" id="fc-counter-badge">0 cards in queue</span>
+              <span class="muted" data-i18n="tapToFlipHint">Tap card (or press Space) to flip</span>
+            </div>
+          </div>
+
+          <div class="fc-stage" id="fc-stage">
+            <div class="flashcard" id="flashcard" tabindex="0" role="button" aria-label="Flashcard, tap to flip">
+              <div class="flashcard-inner" id="flashcard-inner">
+                <div class="flashcard-face flashcard-front">
+                  <div class="fc-face-top">
+                    <span class="badge" id="fc-domain-tag">Domain</span>
+                    <span class="muted" id="fc-card-status">New</span>
+                  </div>
+                  <div class="fc-face-body" id="fc-front-text"></div>
+                  <div class="fc-face-foot muted" data-i18n="tapReveal">Tap to reveal answer</div>
+                </div>
+                <div class="flashcard-face flashcard-back">
+                  <div class="fc-face-top">
+                    <span class="badge badge-emerald" data-i18n="answerBadge">Answer</span>
+                    <span class="muted" id="fc-interval-info"></span>
+                  </div>
+                  <div class="fc-face-body fc-answer-text" id="fc-back-text"></div>
+                  <div class="fc-face-foot muted" data-i18n="ratePrompt">Rate how well you recalled this</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fc-rating-bar" id="fc-rating-bar">
+              <button class="btn rate-btn rate-again" data-rate="1" type="button">
+                <span data-i18n="rateAgain">Again</span><small id="rate-lbl-1">1m</small>
+              </button>
+              <button class="btn rate-btn rate-hard" data-rate="2" type="button">
+                <span data-i18n="rateHard">Hard</span><small id="rate-lbl-2">1d</small>
+              </button>
+              <button class="btn rate-btn rate-good" data-rate="3" type="button">
+                <span data-i18n="rateGood">Good</span><small id="rate-lbl-3">1d</small>
+              </button>
+              <button class="btn rate-btn rate-easy" data-rate="4" type="button">
+                <span data-i18n="rateEasy">Easy</span><small id="rate-lbl-4">4d</small>
+              </button>
+            </div>
+
+            <div class="fc-empty hidden" id="fc-empty">
+              <h3 data-i18n="fcDoneTitle">All due cards reviewed!</h3>
+              <p class="muted" data-i18n="fcDoneDesc">Great job staying on top of your spaced repetition queue.</p>
+              <button class="btn btn-primary" id="btn-fc-browse-all" type="button" data-i18n="fcBrowseAllBtn">Browse All Cards Anyway</button>
+            </div>
+          </div>
+
+          <!-- Add Custom Card Drawer -->
+          <div class="card hidden" id="fc-add-panel">
+            <div class="card-header">
+              <h3 data-i18n="addCardTitle">Add Custom Flashcard</h3>
+              <button class="btn btn-ghost btn-sm" id="btn-close-add-card" type="button">✕</button>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="new-card-domain" data-i18n="domainLabel">Domain</label>
+                <select id="new-card-domain" class="input"></select>
+              </div>
+              <div class="field">
+                <label for="new-card-front" data-i18n="frontLabel">Front (Question / Prompt)</label>
+                <input id="new-card-front" class="input" type="text" placeholder="e.g. OSPF Multicast Addresses" />
+              </div>
+            </div>
+            <div class="field" style="margin-top: 12px;">
+              <label for="new-card-back" data-i18n="backLabel">Back (Answer)</label>
+              <textarea id="new-card-back" class="input" rows="3" placeholder="e.g. 224.0.0.5 (All OSPF Routers), 224.0.0.6 (DR/BDR)"></textarea>
+            </div>
+            <div style="margin-top: 12px;">
+              <button class="btn btn-primary" id="btn-save-custom-card" type="button" data-i18n="saveCardBtn">Save Flashcard</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== SUBNETTING TRAINER VIEW ==================== -->
+        <section class="view" id="view-subnetting">
+          <div class="subtab-bar">
+            <button class="subtab active" data-subtab="ipv4-drill" type="button" data-i18n="tabIpv4Drill">IPv4 Drill</button>
+            <button class="subtab" data-subtab="ipv4-calc" type="button" data-i18n="tabIpv4Calc">Subnet Calculator</button>
+            <button class="subtab" data-subtab="ipv6-drill" type="button" data-i18n="tabIpv6Drill">IPv6 Drill</button>
+          </div>
+
+          <!-- IPv4 Drill -->
+          <div class="card subtab-panel active" id="subtab-ipv4-drill">
+            <div class="card-header">
+              <div>
+                <h2 data-i18n="ipv4DrillTitle">IPv4 Subnetting Speed Drill</h2>
+                <p class="muted" data-i18n="ipv4DrillDesc">Find Network ID, First Host, Last Host, Broadcast, and Usable Hosts.</p>
+              </div>
+              <div class="subnet-score-pills">
+                <span class="badge badge-cyan" id="sub-streak-badge">Streak: 0</span>
+                <select id="sub-difficulty" class="input input-sm">
+                  <option value="easy" data-i18n="diffEasy">Easy (/24–/30)</option>
+                  <option value="medium" data-i18n="diffMed">Medium (/16–/23)</option>
+                  <option value="all" selected data-i18n="diffAll">Full CCNA (/16–/30)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="target-banner">
+              <div class="muted" data-i18n="targetPrefix">Target Address / Prefix</div>
+              <div class="target-ip" id="sub-target-ip">192.168.10.77/27</div>
+            </div>
+
+            <div class="form-grid">
+              <div class="field">
+                <label for="ans-network" data-i18n="networkId">Network ID</label>
+                <input id="ans-network" class="input mono" type="text" inputmode="decimal" placeholder="e.g. 192.168.10.64" />
+              </div>
+              <div class="field">
+                <label for="ans-broadcast" data-i18n="broadcastAddr">Broadcast Address</label>
+                <input id="ans-broadcast" class="input mono" type="text" inputmode="decimal" placeholder="e.g. 192.168.10.95" />
+              </div>
+              <div class="field">
+                <label for="ans-first" data-i18n="firstHost">First Usable Host</label>
+                <input id="ans-first" class="input mono" type="text" inputmode="decimal" placeholder="e.g. 192.168.10.65" />
+              </div>
+              <div class="field">
+                <label for="ans-last" data-i18n="lastHost">Last Usable Host</label>
+                <input id="ans-last" class="input mono" type="text" inputmode="decimal" placeholder="e.g. 192.168.10.94" />
+              </div>
+              <div class="field">
+                <label for="ans-hosts" data-i18n="usableHosts">Usable Host Count</label>
+                <input id="ans-hosts" class="input mono" type="number" inputmode="numeric" placeholder="e.g. 30" />
+              </div>
+            </div>
+
+            <div class="quiz-controls">
+              <button class="btn btn-secondary" id="btn-sub-reveal" type="button" data-i18n="showBreakdown">Show Breakdown</button>
+              <div class="quiz-controls-right">
+                <button class="btn btn-primary" id="btn-sub-check" type="button" data-i18n="checkAnswers">Check Answers</button>
+                <button class="btn btn-secondary" id="btn-sub-next" type="button" data-i18n="newProblem">New Problem →</button>
+              </div>
+            </div>
+
+            <div class="subnet-breakdown hidden" id="sub-breakdown"></div>
+          </div>
+
+          <!-- IPv4 Subnet Calculator -->
+          <div class="card subtab-panel" id="subtab-ipv4-calc">
+            <h2 data-i18n="calcTitle">Quick IPv4 CIDR Calculator</h2>
+            <p class="muted" data-i18n="calcDesc">Enter any IPv4 address and prefix length to inspect mask, wildcard, hosts, and binary.</p>
+            <div class="calc-input-row">
+              <input id="calc-ip" class="input mono" type="text" value="172.16.45.130" placeholder="IPv4 address" />
+              <select id="calc-cidr" class="input mono" style="max-width: 150px;"></select>
+              <button class="btn btn-primary" id="btn-calc-run" type="button" data-i18n="calcBtn">Calculate</button>
+            </div>
+            <div class="calc-results" id="calc-results"></div>
+          </div>
+
+          <!-- IPv6 Drill -->
+          <div class="card subtab-panel" id="subtab-ipv6-drill">
+            <div class="card-header">
+              <div>
+                <h2 data-i18n="v6Title">IPv6 Compression &amp; Expansion Drill</h2>
+                <p class="muted" data-i18n="v6Desc">Practice zero-compression (`::`) and full 128-bit expansion.</p>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="btn-v6-next" type="button" data-i18n="v6New">New IPv6 →</button>
+            </div>
+            <div class="target-banner">
+              <div class="muted" id="v6-task-label">Compress this IPv6 address:</div>
+              <div class="target-ip mono" id="v6-prompt-addr" style="font-size: 1.25rem; word-break: break-all;"></div>
+              <div class="badge badge-cyan" id="v6-type-badge" style="margin-top: 8px;"></div>
+            </div>
+            <div class="field">
+              <label for="v6-answer-input" data-i18n="yourAnswer">Your Answer</label>
+              <input id="v6-answer-input" class="input mono" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Enter compressed or expanded IPv6 address" />
+            </div>
+            <div class="quiz-controls">
+              <button class="btn btn-secondary" id="btn-v6-reveal" type="button" data-i18n="revealAnswer">Reveal Answer</button>
+              <button class="btn btn-primary" id="btn-v6-check" type="button" data-i18n="checkV6">Check IPv6</button>
+            </div>
+            <div class="subnet-breakdown hidden" id="v6-feedback"></div>
+          </div>
+        </section>
+
+        <!-- ==================== CISCO IOS CLI LABS VIEW ==================== -->
+        <section class="view" id="view-labs">
+          <div class="labs-layout">
+            <div class="card labs-sidebar-card">
+              <h3 data-i18n="labsTitle">Guided IOS Labs</h3>
+              <p class="muted" data-i18n="labsDesc">Tap a scenario to practice real Cisco CLI syntax.</p>
+              <div class="lab-list" id="lab-list"></div>
+            </div>
+
+            <div class="card lab-workspace">
+              <div class="lab-header">
+                <div>
+                  <span class="badge badge-cyan" id="lab-domain-badge">Domain</span>
+                  <h2 id="lab-title">Select a Lab</h2>
+                  <p class="muted" id="lab-objective"></p>
+                </div>
+                <button class="btn btn-ghost btn-sm" id="btn-lab-reset" type="button" data-i18n="resetLab">↺ Reset Lab</button>
+              </div>
+
+              <div class="exhibit-card lab-topo-card hidden" id="lab-topo-wrap">
+                <div class="exhibit-header">
+                  <span class="badge badge-cyan" data-i18n="labTopoLabel">Lab Topology Diagram</span>
+                  <span class="muted exhibit-zoom-hint" data-i18n="tapZoomHint">Tap image to zoom</span>
+                </div>
+                <img id="lab-topo-img" class="exhibit-img lab-topo-img" src="" alt="Simulation Lab Topology" />
+              </div>
+
+              <div class="lab-step-box" id="lab-step-box">
+                <div class="lab-step-progress" id="lab-step-progress">Step 1 of 1</div>
+                <div class="lab-step-hint" id="lab-step-hint"></div>
+                <div class="lab-chips" id="lab-chips"></div>
+              </div>
+
+              <div class="terminal" id="lab-terminal" aria-live="polite"></div>
+
+              <form class="terminal-input-row" id="lab-form">
+                <span class="term-prompt mono" id="lab-prompt">Router&gt;</span>
+                <input id="lab-input" class="term-input mono" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type IOS command or tap suggestion chip..." />
+                <button class="btn btn-primary btn-sm" type="submit" data-i18n="enterBtn">Enter ↵</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== NOTES & SYNC VIEW ==================== -->
+        <section class="view" id="view-sync">
+          <div class="hero-grid">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2 data-i18n="syncTitle">Sync Samsung Phone ↔ iPad</h2>
+                  <p class="muted" data-i18n="syncDesc">Move or merge your study progress, flashcards, and notes between devices.</p>
+                </div>
+              </div>
+
+              <div class="sync-block">
+                <h3 data-i18n="syncOpt1Title">Option 1: Quick Sync Code (Copy &amp; Paste)</h3>
+                <p class="muted" data-i18n="syncOpt1Desc">Tap Generate, send the code to yourself (WhatsApp, Telegram, Keep, Apple Notes), then paste it on your other device.</p>
+                <div class="sync-btn-row">
+                  <button class="btn btn-primary" id="btn-gen-sync-code" type="button" data-i18n="copySyncCode">Copy Sync Code</button>
+                  <button class="btn btn-secondary" id="btn-export-json" type="button" data-i18n="downloadJson">⬇ Download JSON Backup</button>
+                </div>
+                <textarea id="sync-code-box" class="input mono" rows="4" placeholder="Generated sync code appears here — or paste a code from your other device to import..."></textarea>
+                <div class="sync-btn-row">
+                  <button class="btn btn-primary" id="btn-import-merge" type="button" data-i18n="importMerge">Import &amp; Merge Progress</button>
+                  <button class="btn btn-secondary" id="btn-import-replace" type="button" data-i18n="importReplace">Replace Local Data</button>
+                  <label class="btn btn-ghost file-btn">
+                    <span data-i18n="uploadJson">⬆ Upload JSON File</span>
+                    <input type="file" id="input-import-file" accept=".json,application/json" hidden />
+                  </label>
+                </div>
+                <div id="sync-status-msg" class="muted"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 data-i18n="installTitle">Install as App on Your Devices</h3>
+              <div class="install-steps">
+                <div class="install-box">
+                  <h4 data-i18n="samsungTitle">📱 Samsung Phone (Android)</h4>
+                  <ol id="sync-samsung-steps">
+                    <li>Open the hosted HTTPS URL in <strong>Chrome</strong> or <strong>Samsung Internet</strong>.</li>
+                    <li>Tap the <strong>⋮ Menu</strong> (or install icon in the address bar).</li>
+                    <li>Select <strong>Install app</strong> or <strong>Add page to → Home screen</strong>.</li>
+                  </ol>
+                </div>
+                <div class="install-box">
+                  <h4 data-i18n="ipadTitle">📲 iPad (iPadOS Safari)</h4>
+                  <ol id="sync-ipad-steps">
+                    <li>Open the hosted HTTPS URL in <strong>Safari</strong>.</li>
+                    <li>Tap the <strong>Share</strong> button (square with up arrow).</li>
+                    <li>Tap <strong>Add to Home Screen</strong> → <strong>Add</strong>.</li>
+                  </ol>
+                </div>
+              </div>
+              <div class="danger-zone">
+                <button class="btn btn-danger btn-sm" id="btn-reset-all" type="button" data-i18n="resetAllBtn">Reset All Local Study Progress</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3 data-i18n="notesTitle">Personal CCNA Study Notes</h3>
+                <p class="muted" data-i18n="notesDesc">Saved automatically and included in your Samsung ↔ iPad sync backups.</p>
+              </div>
+              <select id="notes-domain-select" class="input input-sm"></select>
+            </div>
+            <textarea id="notes-textarea" class="input" rows="8" placeholder="Write command reminders, subnetting tricks, or weak areas for this domain..."></textarea>
+            <div class="muted" id="notes-saved-label" style="margin-top: 8px;">Auto-saved locally</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Phone Bottom Navigation Bar (< 768px) -->
+    <nav class="bottom-nav" aria-label="Mobile navigation">
+      <button class="bottom-nav-item active" data-view="dashboard" type="button">
+        <span aria-hidden="true">📊</span>
+        <span data-i18n="navHomeShort">Home</span>
+      </button>
+      <button class="bottom-nav-item" data-view="practice" type="button">
+        <span aria-hidden="true">📝</span>
+        <span data-i18n="navPracticeShort">Practice</span>
+      </button>
+      <button class="bottom-nav-item" data-view="flashcards" type="button">
+        <span aria-hidden="true">🃏</span>
+        <span data-i18n="navCardsShort">Cards</span>
+      </button>
+      <button class="bottom-nav-item" data-view="subnetting" type="button">
+        <span aria-hidden="true">🧮</span>
+        <span data-i18n="navSubnetShort">Subnet</span>
+      </button>
+      <button class="bottom-nav-item" data-view="labs" type="button">
+        <span aria-hidden="true">💻</span>
+        <span data-i18n="navLabsShort">Labs</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Install Guide Modal -->
+  <div class="modal-backdrop hidden" id="install-modal" role="dialog" aria-modal="true" aria-labelledby="install-modal-title">
+    <div class="modal card">
+      <div class="card-header">
+        <h3 id="install-modal-title">Use on Samsung Phone &amp; iPad</h3>
+        <button class="btn btn-ghost btn-sm" id="btn-close-modal" type="button">✕</button>
+      </div>
+      <p class="muted" id="install-modal-desc">This app is an offline-ready Progressive Web App (PWA). Once deployed to any free static host (Netlify Drop, GitHub Pages, Cloudflare Pages) or opened via your PC's Wi-Fi server:</p>
+      <div class="install-steps">
+        <div class="install-box">
+          <h4 id="modal-samsung-title">Samsung Galaxy (Chrome / Samsung Internet)</h4>
+          <p id="modal-samsung-body">Tap <strong>⋮ → Install app</strong> (or <strong>Add to Home screen</strong>). It launches full-screen and works offline on flights or commutes.</p>
+        </div>
+        <div class="install-box">
+          <h4 id="modal-ipad-title">iPad (Safari)</h4>
+          <p id="modal-ipad-body">Tap the <strong>Share icon → Add to Home Screen</strong>. Supports both portrait and landscape split layouts.</p>
+        </div>
+      </div>
+      <button class="btn btn-primary hidden" id="btn-native-install" type="button" data-i18n="installNow">Install App Now</button>
+    </div>
+  </div>
+
+  <!-- Exhibit Zoom Lightbox Modal -->
+  <div class="modal-backdrop hidden" id="exhibit-modal" role="dialog" aria-modal="true" aria-label="Exhibit Zoom">
+    <div class="modal modal-lightbox card">
+      <div class="card-header">
+        <span class="badge badge-cyan" id="exhibit-modal-title" data-i18n="exhibitLabel">Topology / Exhibit</span>
+        <button class="btn btn-ghost btn-sm" id="btn-close-exhibit" type="button">✕</button>
+      </div>
+      <div class="lightbox-body">
+        <img id="exhibit-modal-img" class="lightbox-img" src="" alt="Zoomed Exhibit" />
+      </div>
+    </div>
+  </div>
+
+  <script defer src="./js/storage.js"></script>
+  <script defer src="./js/i18n.js"></script>
+  <script defer src="./js/data-questions.js"></script>
+  <script defer src="./js/data-flashcards.js"></script>
+  <script defer src="./js/data-labs.js"></script>
+  <script defer src="./js/data-zh.js"></script>
+  <script defer src="./js/subnetting.js"></script>
+  <script defer src="./js/app.js"></script>
+</body>
+</html>

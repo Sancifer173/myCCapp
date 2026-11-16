@@ -1,0 +1,50 @@
+{
+  "name": "CCNA 200-301 Study Hub",
+  "short_name": "CCNA Hub",
+  "description": "Offline-ready CCNA 200-301 exam prep platform for phone & iPad: practice exams, spaced-repetition flashcards, subnetting trainer, and Cisco IOS CLI labs.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Practice Exam",
+      "short_name": "Practice",
+      "url": "./index.html#practice",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Flashcards",
+      "short_name": "Cards",
+      "url": "./index.html#flashcards",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Subnetting Trainer",
+      "short_name": "Subnet",
+      "url": "./index.html#subnetting",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
