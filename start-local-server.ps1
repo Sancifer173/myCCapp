@@ -13,6 +13,10 @@ $MimeTypes = @{
   ".webmanifest" = "application/manifest+json; charset=utf-8"
   ".svg"         = "image/svg+xml"
   ".png"         = "image/png"
+  ".jpg"         = "image/jpeg"
+  ".jpeg"        = "image/jpeg"
+  ".webp"        = "image/webp"
+  ".gif"         = "image/gif"
   ".ico"         = "image/x-icon"
 }
 
@@ -42,6 +46,9 @@ try {
 
     $Ext = [System.IO.Path]::GetExtension($FullPath).ToLowerInvariant()
     $Context.Response.ContentType = if ($MimeTypes.ContainsKey($Ext)) { $MimeTypes[$Ext] } else { "application/octet-stream" }
+    if ($Ext -in @(".html", ".js", ".css", ".webmanifest")) {
+      $Context.Response.Headers["Cache-Control"] = "no-cache"
+    }
     $Bytes = [System.IO.File]::ReadAllBytes($FullPath)
     $Context.Response.ContentLength64 = $Bytes.Length
     $Context.Response.OutputStream.Write($Bytes, 0, $Bytes.Length)

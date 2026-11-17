@@ -26,6 +26,7 @@
       customCards: [],
       subnetStats: { attempted: 0, correct: 0, streak: 0, bestStreak: 0 },
       labProgress: {},
+      kwReviewed: {},
       notes: {
         fundamentals: '',
         access: '',
@@ -73,6 +74,7 @@
         bestStreak: Number(input.subnetStats && input.subnetStats.bestStreak) || 0
       },
       labProgress: (input.labProgress && typeof input.labProgress === 'object') ? input.labProgress : {},
+      kwReviewed: (input.kwReviewed && typeof input.kwReviewed === 'object') ? input.kwReviewed : {},
       notes: Object.assign({}, def.notes, (input.notes && typeof input.notes === 'object') ? input.notes : {})
     };
   }
@@ -207,6 +209,11 @@
     const lKeys = new Set([...Object.keys(a.labProgress), ...Object.keys(b.labProgress)]);
     lKeys.forEach((lid) => {
       merged.labProgress[lid] = b.labProgress[lid] || a.labProgress[lid];
+    });
+
+    const kwKeys = new Set([...Object.keys(a.kwReviewed), ...Object.keys(b.kwReviewed)]);
+    kwKeys.forEach((kid) => {
+      merged.kwReviewed[kid] = Boolean(a.kwReviewed[kid] || b.kwReviewed[kid]);
     });
 
     DOMAINS.forEach((d) => {

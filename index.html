@@ -41,6 +41,14 @@
           <span class="nav-icon" aria-hidden="true">📝</span>
           <span data-i18n="navPractice">Practice Exams</span>
         </button>
+        <button class="nav-item" data-view="kw">
+          <span class="nav-icon" aria-hidden="true">📚</span>
+          <span data-i18n="navKw">Knowledge Point (KW)</span>
+        </button>
+        <button class="nav-item" data-view="graph">
+          <span class="nav-icon" aria-hidden="true">🕸️</span>
+          <span data-i18n="navGraph">All in one</span>
+        </button>
         <button class="nav-item" data-view="flashcards">
           <span class="nav-icon" aria-hidden="true">🃏</span>
           <span data-i18n="navFlashcards">Flashcards</span>
@@ -250,7 +258,11 @@
                   <span class="badge badge-cyan" data-i18n="exhibitLabel">Topology / Exhibit</span>
                   <span class="muted exhibit-zoom-hint" data-i18n="tapZoomHint">Tap image to zoom</span>
                 </div>
-                <img id="quiz-exhibit-img" class="exhibit-img" src="" alt="Exam Question Exhibit" loading="lazy" />
+                <img id="quiz-exhibit-img" class="exhibit-img" alt="Exam Question Exhibit" />
+                <div class="exhibit-error hidden" id="quiz-exhibit-error">
+                  <span class="muted" id="quiz-exhibit-error-text"></span>
+                  <button class="btn btn-secondary btn-sm" id="btn-retry-exhibit" type="button" data-i18n="retryImgBtn">↻ Reload Image</button>
+                </div>
               </div>
               <div class="quiz-hint muted hidden" id="quiz-multi-hint" data-i18n="multiHint">Select all required answers, then tap Check Answer.</div>
               <div class="quiz-options" id="quiz-options"></div>
@@ -260,7 +272,7 @@
                     <span class="badge badge-cyan" data-i18n="ddPromptLabel">Drag &amp; Drop Diagram</span>
                     <span class="muted exhibit-zoom-hint" data-i18n="tapZoomHint">Tap image to zoom</span>
                   </div>
-                  <img id="dd-q-img" class="exhibit-img" src="" alt="Drag and Drop Question Diagram" />
+                  <img id="dd-q-img" class="exhibit-img" alt="Drag and Drop Question Diagram" />
                 </div>
                 <div class="dd-actions">
                   <button class="btn btn-primary" id="btn-dd-reveal" type="button" data-i18n="ddRevealBtn">Show Official Answer Diagram</button>
@@ -271,7 +283,7 @@
                       <span class="badge badge-green" data-i18n="ddAnswerLabel">Official Answer</span>
                       <span class="muted exhibit-zoom-hint" data-i18n="tapZoomHint">Tap image to zoom</span>
                     </div>
-                    <img id="dd-a-img" class="exhibit-img" src="" alt="Drag and Drop Answer Diagram" />
+                    <img id="dd-a-img" class="exhibit-img" alt="Drag and Drop Answer Diagram" />
                   </div>
                   <div class="dd-grade-row" id="dd-grade-row">
                     <span class="muted" data-i18n="ddSelfCheckPrompt">How did you do?</span>
@@ -293,8 +305,12 @@
 
               <div class="quiz-explanation hidden" id="quiz-explanation">
                 <div class="exp-status" id="quiz-exp-status"></div>
-                <p id="quiz-exp-text"></p>
+                <div class="exp-text" id="quiz-exp-text"></div>
                 <div class="exp-tip" id="quiz-exp-tip"></div>
+                <div class="quiz-kw-wrap hidden" id="quiz-kw-wrap">
+                  <div class="quiz-kw-label" data-i18n="relatedKwLabel">📚 Related Knowledge to Review (KW pt.):</div>
+                  <div class="quiz-kw-links" id="quiz-kw-links"></div>
+                </div>
               </div>
             </div>
 
@@ -536,7 +552,7 @@
                   <span class="badge badge-cyan" data-i18n="labTopoLabel">Lab Topology Diagram</span>
                   <span class="muted exhibit-zoom-hint" data-i18n="tapZoomHint">Tap image to zoom</span>
                 </div>
-                <img id="lab-topo-img" class="exhibit-img lab-topo-img" src="" alt="Simulation Lab Topology" />
+                <img id="lab-topo-img" class="exhibit-img lab-topo-img" alt="Simulation Lab Topology" />
               </div>
 
               <div class="lab-step-box" id="lab-step-box">
@@ -553,6 +569,130 @@
                 <button class="btn btn-primary btn-sm" type="submit" data-i18n="enterBtn">Enter ↵</button>
               </form>
             </div>
+          </div>
+        </section>
+
+        <!-- ==================== KNOWLEDGE POINT (KW) VIEW ==================== -->
+        <section class="view" id="view-kw">
+          <div class="card kw-controls-card">
+            <div class="card-header">
+              <div>
+                <h2 data-i18n="kwTitle">CCNA Knowledge Database (KW pt.)</h2>
+                <p class="muted" data-i18n="kwDesc">Structured core concepts distilled from all 2026 CCNA Handout PDFs (Ch01–Ch10 &amp; Lab Sheets).</p>
+              </div>
+              <div class="kw-header-actions">
+                <button class="btn btn-secondary btn-sm hidden" id="btn-kw-back-quiz" type="button" data-i18n="backToQuestionBtn">← Back to Question</button>
+                <span class="badge badge-cyan" id="kw-progress-badge">0 / 0 Reviewed</span>
+              </div>
+            </div>
+            <div class="kw-filter-bar">
+              <input id="kw-search-input" class="input input-sm" type="search" placeholder="Search concepts, protocols, ports, CLI..." />
+              <select id="kw-chapter-select" class="input input-sm">
+                <option value="all" data-i18n="kwAllChapters">All Handout Chapters</option>
+              </select>
+              <select id="kw-domain-select" class="input input-sm">
+                <option value="all" data-i18n="allDomains">All Domains</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="kw-layout">
+            <div class="card kw-list-card">
+              <div class="kw-list" id="kw-list"></div>
+            </div>
+
+            <div class="card kw-detail-card" id="kw-detail">
+              <div class="kw-detail-top">
+                <div class="kw-detail-badges">
+                  <span class="badge badge-cyan" id="kw-detail-id">KW-01</span>
+                  <span class="badge" id="kw-detail-chapter">Ch01</span>
+                  <span class="badge" id="kw-detail-domain">Domain</span>
+                </div>
+                <div class="kw-detail-actions">
+                  <button class="btn btn-ghost btn-sm" id="btn-kw-to-graph" type="button" data-i18n="viewInMapBtn">🕸️ Map View</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-kw-mark" type="button" data-i18n="kwMarkReviewed">✓ Mark Reviewed</button>
+                </div>
+              </div>
+
+              <h2 id="kw-detail-title">Select a Knowledge Point</h2>
+              <p class="kw-summary" id="kw-detail-summary"></p>
+
+              <div class="kw-section">
+                <h4 data-i18n="kwKeyPointsHeading">Key Concepts &amp; Exam Essentials</h4>
+                <ul class="kw-bullets" id="kw-detail-bullets"></ul>
+              </div>
+
+              <div class="kw-section hidden" id="kw-detail-cmd-wrap">
+                <h4 data-i18n="kwCliHeading">Cisco IOS CLI Reference</h4>
+                <pre class="kw-cli-block mono" id="kw-detail-cmd"></pre>
+              </div>
+
+              <div class="kw-trap hidden" id="kw-detail-trap-wrap">
+                <strong data-i18n="kwTrapHeading">⚠ Common Exam Trap: </strong>
+                <span id="kw-detail-trap"></span>
+              </div>
+
+              <div class="kw-section">
+                <h4 data-i18n="kwConnectionsHeading">Obsidian-Style Concept Links</h4>
+                <div class="kw-conn-chips" id="kw-detail-links"></div>
+              </div>
+
+              <div class="kw-detail-footer">
+                <button class="btn btn-primary" id="btn-kw-practice" type="button" data-i18n="kwPracticeBtn">📝 Practice Related Questions</button>
+                <span class="muted" id="kw-related-q-count">0 related exam questions</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== ALL IN ONE (OBSIDIAN KNOWLEDGE MAP) VIEW ==================== -->
+        <section class="view" id="view-graph">
+          <div class="card graph-controls-card">
+            <div class="card-header">
+              <div>
+                <h2 data-i18n="graphTitle">All in one — CCNA Knowledge Map</h2>
+                <p class="muted" data-i18n="graphDesc">Obsidian-style visual concept graph showing how CCNA protocols, layers, and security mechanisms connect.</p>
+              </div>
+              <div class="graph-toolbar-btns">
+                <button class="btn btn-ghost btn-sm" id="btn-graph-local" type="button" data-i18n="graphLocalBtn">🔍 Focus Neighbor Mode</button>
+                <button class="btn btn-ghost btn-sm" id="btn-graph-labels" type="button" data-i18n="graphEdgeLabelsBtn">🏷 Edge Labels</button>
+                <button class="btn btn-secondary btn-sm" id="btn-graph-fit" type="button" data-i18n="graphResetBtn">⌖ Reset View</button>
+              </div>
+            </div>
+            <div class="graph-filter-row">
+              <input id="graph-search-input" class="input input-sm" type="search" placeholder="Find concept node (e.g. STP, OSPF, VLAN, ACL)..." />
+              <div class="graph-domain-pills" id="graph-domain-pills"></div>
+            </div>
+          </div>
+
+          <div class="graph-layout">
+            <div class="card graph-stage-card">
+              <canvas id="knowledge-canvas" aria-label="CCNA Concept Knowledge Graph"></canvas>
+              <div class="graph-zoom-overlay">
+                <button class="btn btn-secondary btn-sm" id="btn-graph-zoom-in" type="button" aria-label="Zoom In">+</button>
+                <button class="btn btn-secondary btn-sm" id="btn-graph-zoom-out" type="button" aria-label="Zoom Out">−</button>
+              </div>
+              <div class="graph-hint-overlay muted" data-i18n="graphHintOverlay">Tap node to inspect • Drag canvas/nodes • Pinch or scroll to zoom</div>
+            </div>
+
+            <aside class="card graph-inspector" id="graph-inspector">
+              <div class="kw-detail-badges">
+                <span class="badge badge-cyan" id="graph-node-id">KW-01</span>
+                <span class="badge" id="graph-node-domain">Domain</span>
+              </div>
+              <h3 id="graph-node-title">Select a Node</h3>
+              <p class="kw-summary" id="graph-node-brief"></p>
+
+              <div class="kw-section">
+                <h4 data-i18n="graphConnHeading">Direct Connections &amp; Why They Matter</h4>
+                <div class="graph-conn-list" id="graph-connections-list"></div>
+              </div>
+
+              <div class="graph-inspector-actions">
+                <button class="btn btn-primary btn-sm" id="btn-graph-open-kw" type="button" data-i18n="graphOpenKwBtn">📚 Open Full KW Note</button>
+                <button class="btn btn-secondary btn-sm" id="btn-graph-practice" type="button" data-i18n="graphPracticeBtn">📝 Drill Questions</button>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -638,6 +778,14 @@
         <span aria-hidden="true">📝</span>
         <span data-i18n="navPracticeShort">Practice</span>
       </button>
+      <button class="bottom-nav-item" data-view="kw" type="button">
+        <span aria-hidden="true">📚</span>
+        <span data-i18n="navKwShort">KW pt.</span>
+      </button>
+      <button class="bottom-nav-item" data-view="graph" type="button">
+        <span aria-hidden="true">🕸️</span>
+        <span data-i18n="navGraphShort">All in one</span>
+      </button>
       <button class="bottom-nav-item" data-view="flashcards" type="button">
         <span aria-hidden="true">🃏</span>
         <span data-i18n="navCardsShort">Cards</span>
@@ -683,7 +831,7 @@
         <button class="btn btn-ghost btn-sm" id="btn-close-exhibit" type="button">✕</button>
       </div>
       <div class="lightbox-body">
-        <img id="exhibit-modal-img" class="lightbox-img" src="" alt="Zoomed Exhibit" />
+        <img id="exhibit-modal-img" class="lightbox-img" alt="Zoomed Exhibit" />
       </div>
     </div>
   </div>
@@ -693,6 +841,8 @@
   <script defer src="./js/data-questions.js"></script>
   <script defer src="./js/data-flashcards.js"></script>
   <script defer src="./js/data-labs.js"></script>
+  <script defer src="./js/data-kw.js"></script>
+  <script defer src="./js/data-graph.js"></script>
   <script defer src="./js/data-zh.js"></script>
   <script defer src="./js/subnetting.js"></script>
   <script defer src="./js/app.js"></script>

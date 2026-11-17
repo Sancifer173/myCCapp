@@ -9,6 +9,8 @@
   const LABS = window.CCNA_LABS || [];
   const { getPrompt } = window.CCNALabHelpers;
   const SUB = window.CCNASubnetting;
+  const KWS = window.CCNA_KW || [];
+  const GRAPH = window.CCNA_GRAPH || { nodes: [], edges: [] };
   const ZH = window.CCNA_ZH || { QUESTIONS: {}, FLASHCARDS: {}, LABS: {} };
 
   let state = loadState();
@@ -18,6 +20,18 @@
   // Quiz session state
   let quiz = null;
   let quizTimerHandle = null;
+  let kwReturnToQuiz = false;
+
+  // Knowledge Point (KW) & All-in-one Graph state
+  let activeKwId = KWS.length ? KWS[0].id : null;
+  let activeGraphNodeId = GRAPH.nodes.length ? GRAPH.nodes[0].id : null;
+  let graphDomainFilter = 'all';
+  let graphLocalOnly = false;
+  let graphShowEdgeLabels = true;
+  let graphInited = false;
+  let graphCam = { x: 0, y: 0, scale: 1 };
+  let graphNodesSim = [];
+  let graphAnimFrame = null;
 
   // Flashcard session state
   let fcQueue = [];
@@ -67,9 +81,36 @@
 
   function openExhibitModal(src, title) {
     if (!src) return;
-    $('exhibit-modal-img').src = src;
+    setImgSrc($('exhibit-modal-img'), src);
     $('exhibit-modal-title').textContent = title || t().exhibitLabel;
     $('exhibit-modal').classList.remove('hidden');
+  }
+
+  function setImgSrc(imgEl, src, errWrapEl, errTextEl) {
+    if (!imgEl) return;
+    if (errWrapEl) errWrapEl.classList.add('hidden');
+    if (!src) {
+      imgEl.removeAttribute('src');
+      return;
+    }
+    imgEl.dataset.baseSrc = src;
+    imgEl.dataset.retried = '';
+    imgEl.onerror = () => {
+      if (!imgEl.dataset.retried) {
+        imgEl.dataset.retried = '1';
+        imgEl.src = src + (src.includes('?') ? '&' : '?') + 'v=4';
+        return;
+      }
+      if (errWrapEl && errTextEl) {
+        errTextEl.textContent = (isZh() ? '無法載入圖片：' : 'Image failed to load: ') + src;
+        errWrapEl.classList.remove('hidden');
+      }
+    };
+    imgEl.onload = () => {
+      if (errWrapEl) errWrapEl.classList.add('hidden');
+    };
+    imgEl.decoding = 'async';
+    imgEl.src = src;
   }
 
   function localizeCard(card) {
@@ -120,8 +161,9 @@
   }
 
   function updateDomainSelectOptions() {
-    ['quiz-domain-select', 'fc-domain-filter', 'new-card-domain', 'notes-domain-select'].forEach((selId) => {
+    ['quiz-domain-select', 'fc-domain-filter', 'new-card-domain', 'notes-domain-select', 'kw-domain-select'].forEach((selId) => {
       const sel = $(selId);
+      if (!sel) return;
       Array.from(sel.options).forEach((opt) => {
         if (opt.value === 'all') return;
         const d = domainInfo(opt.value);
@@ -154,6 +196,8 @@
     $('lab-input').placeholder = tr.cliPlaceholder;
     $('notes-textarea').placeholder = tr.notesPlaceholder;
     $('notes-saved-label').textContent = tr.autoSaved;
+    if ($('kw-search-input')) $('kw-search-input').placeholder = tr.kwSearchPlaceholder;
+    if ($('graph-search-input')) $('graph-search-input').placeholder = tr.graphSearchPlaceholder;
     $('sync-code-box').placeholder = isZh()
       ? '點擊「複製同步碼」會產生代碼於此，或貼上另一台裝置的同步碼以匯入...'
       : 'Generated sync code appears here — or paste a code from your other device to import...';
@@ -187,6 +231,12 @@
       renderLabList();
       renderLabStep();
     }
+    populateKwChapterSelect();
+    renderKwList();
+    renderKwDetail();
+    renderGraphDomainPills();
+    renderGraphInspector();
+    if (currentView === 'graph') requestGraphDraw();
   }
 
   function toggleLanguage() {
@@ -214,6 +264,17 @@
     if (viewId === 'dashboard') renderDashboard();
     if (viewId === 'flashcards') rebuildFlashcardQueue();
     if (viewId === 'practice' && !quiz) updateQuizPoolCount();
+    if (viewId === 'kw') {
+      $('btn-kw-back-quiz').classList.toggle('hidden', !(kwReturnToQuiz && quiz));
+      renderKwList();
+      renderKwDetail();
+    }
+    if (viewId === 'graph') {
+      initGraphIfNeeded();
+      resizeGraphCanvas();
+      requestGraphDraw();
+      renderGraphInspector();
+    }
   }
 
   // ==================== DASHBOARD ====================
@@ -498,11 +559,11 @@
 
     const exWrap = $('quiz-exhibit-wrap');
     if (q.exhibit && q.type !== 'dragdrop') {
-      $('quiz-exhibit-img').src = q.exhibit;
       exWrap.classList.remove('hidden');
+      setImgSrc($('quiz-exhibit-img'), q.exhibit, $('quiz-exhibit-error'), $('quiz-exhibit-error-text'));
     } else {
       exWrap.classList.add('hidden');
-      $('quiz-exhibit-img').removeAttribute('src');
+      setImgSrc($('quiz-exhibit-img'), '');
     }
 
     const st = state.questionStats[q.id];
@@ -516,12 +577,14 @@
       $('quiz-multi-hint').classList.add('hidden');
       optContainer.classList.add('hidden');
       ddWrap.classList.remove('hidden');
-      $('dd-q-img').src = q.qImg || '';
+      setImgSrc($('dd-q-img'), q.qImg || '');
       const isRevealed = Boolean(quiz.revealed && quiz.revealed[quiz.index]) || isChecked;
       $('btn-dd-reveal').classList.toggle('hidden', isRevealed);
       $('dd-a-wrap').classList.toggle('hidden', !isRevealed);
       if (isRevealed) {
-        $('dd-a-img').src = q.aImg || '';
+        setImgSrc($('dd-a-img'), q.aImg || '');
+      } else {
+        setImgSrc($('dd-a-img'), '');
       }
       const pickedRight = sel.length === 1 && sel[0] === 1;
       const pickedWrong = sel.length === 1 && sel[0] === 0;
@@ -596,6 +659,28 @@
       } else {
         tipEl.textContent = '';
         tipEl.classList.add('hidden');
+      }
+
+      const kwWrap = $('quiz-kw-wrap');
+      const kwLinks = $('quiz-kw-links');
+      kwLinks.innerHTML = '';
+      const matchedKws = (rawQ.kwIds || []).map((kid) => KWS.find((k) => k.id === kid)).filter(Boolean);
+      if (matchedKws.length) {
+        matchedKws.forEach((kw) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'kw-chip-btn';
+          const label = isZh() ? (kw.titleZh || kw.title) : kw.title;
+          btn.textContent = `[${kw.id.toUpperCase()}] ${label} ↗`;
+          btn.addEventListener('click', () => {
+            kwReturnToQuiz = true;
+            openKnowledgePoint(kw.id);
+          });
+          kwLinks.appendChild(btn);
+        });
+        kwWrap.classList.remove('hidden');
+      } else {
+        kwWrap.classList.add('hidden');
       }
     } else {
       expBox.classList.add('hidden');
@@ -971,11 +1056,11 @@
     $('lab-objective').textContent = lab.objective;
     const topoWrap = $('lab-topo-wrap');
     if (rawLab.topology) {
-      $('lab-topo-img').src = rawLab.topology;
       topoWrap.classList.remove('hidden');
+      setImgSrc($('lab-topo-img'), rawLab.topology);
     } else {
       topoWrap.classList.add('hidden');
-      $('lab-topo-img').removeAttribute('src');
+      setImgSrc($('lab-topo-img'), '');
     }
     $('lab-terminal').innerHTML = '';
     appendTerminal(
@@ -1090,16 +1175,585 @@
     }
   }
 
+  // ==================== KNOWLEDGE POINT (KW) & OBSIDIAN MAP ====================
+  function getKwById(id) {
+    return KWS.find((k) => k.id === id) || KWS[0] || null;
+  }
+
+  function populateKwChapterSelect() {
+    const sel = $('kw-chapter-select');
+    if (!sel) return;
+    const prev = sel.value || 'all';
+    const tr = t();
+    sel.innerHTML = `<option value="all">${escapeHtml(tr.kwAllChapters)}</option>`;
+    const seen = new Map();
+    KWS.forEach((kw) => {
+      if (!seen.has(kw.chapter)) {
+        seen.set(kw.chapter, isZh() ? (kw.chapterLabelZh || kw.chapterLabel || kw.chapter) : (kw.chapterLabel || kw.chapter));
+      }
+    });
+    seen.forEach((lbl, ch) => {
+      const opt = document.createElement('option');
+      opt.value = ch;
+      opt.textContent = lbl;
+      sel.appendChild(opt);
+    });
+    sel.value = seen.has(prev) ? prev : 'all';
+  }
+
+  function getFilteredKws() {
+    const query = ($('kw-search-input') ? $('kw-search-input').value : '').trim().toLowerCase();
+    const chap = $('kw-chapter-select') ? $('kw-chapter-select').value : 'all';
+    const dom = $('kw-domain-select') ? $('kw-domain-select').value : 'all';
+    return KWS.filter((kw) => {
+      if (chap !== 'all' && kw.chapter !== chap) return false;
+      if (dom !== 'all' && kw.domain !== dom) return false;
+      if (!query) return true;
+      const hay = [
+        kw.id,
+        kw.chapter,
+        kw.title,
+        kw.titleZh || '',
+        kw.summary,
+        kw.summaryZh || '',
+        ...(kw.bullets || []),
+        ...(kw.bulletsZh || []),
+        ...(kw.commands || [])
+      ].join(' ').toLowerCase();
+      return hay.includes(query);
+    });
+  }
+
+  function renderKwList() {
+    const list = $('kw-list');
+    if (!list) return;
+    const items = getFilteredKws();
+    const reviewedCount = KWS.filter((k) => state.kwReviewed && state.kwReviewed[k.id]).length;
+    if ($('kw-progress-badge')) {
+      $('kw-progress-badge').textContent = isZh()
+        ? `已溫習 ${reviewedCount} / ${KWS.length}`
+        : `${reviewedCount} / ${KWS.length} Reviewed`;
+    }
+
+    list.innerHTML = '';
+    if (!items.length) {
+      list.innerHTML = `<div class="muted" style="padding:12px;">${isZh() ? '找不到符合條件的知識點。' : 'No matching knowledge points.'}</div>`;
+      return;
+    }
+
+    items.forEach((kw) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'kw-item' + (activeKwId === kw.id ? ' active' : '');
+      const done = Boolean(state.kwReviewed && state.kwReviewed[kw.id]);
+      const d = domainInfo(kw.domain);
+      const title = isZh() ? (kw.titleZh || kw.title) : kw.title;
+      btn.innerHTML = `
+        <div>
+          <div class="kw-item-title">${escapeHtml(title)}</div>
+          <div class="kw-item-meta">${escapeHtml(kw.id.toUpperCase())} · ${escapeHtml(kw.chapter)} · ${escapeHtml(domainShort(d))}</div>
+        </div>
+        <span>${done ? '✅' : '▸'}</span>
+      `;
+      btn.addEventListener('click', () => {
+        activeKwId = kw.id;
+        renderKwList();
+        renderKwDetail();
+      });
+      list.appendChild(btn);
+    });
+  }
+
+  function renderKwDetail() {
+    const tr = t();
+    const kw = getKwById(activeKwId);
+    if (!kw) return;
+    activeKwId = kw.id;
+    const d = domainInfo(kw.domain);
+
+    $('kw-detail-id').textContent = kw.id.toUpperCase();
+    $('kw-detail-chapter').textContent = isZh() ? (kw.chapterLabelZh || kw.chapter) : (kw.chapterLabel || kw.chapter);
+    $('kw-detail-domain').textContent = domainName(d);
+    $('kw-detail-domain').style.borderColor = d.color;
+    $('kw-detail-title').textContent = isZh() ? (kw.titleZh || kw.title) : kw.title;
+    $('kw-detail-summary').textContent = isZh() ? (kw.summaryZh || kw.summary) : kw.summary;
+
+    const done = Boolean(state.kwReviewed && state.kwReviewed[kw.id]);
+    $('btn-kw-mark').textContent = done ? tr.kwReviewedDone : tr.kwMarkReviewed;
+    $('btn-kw-mark').classList.toggle('btn-primary', done);
+    $('btn-kw-mark').classList.toggle('btn-secondary', !done);
+
+    const bullets = isZh() && kw.bulletsZh && kw.bulletsZh.length ? kw.bulletsZh : (kw.bullets || []);
+    $('kw-detail-bullets').innerHTML = bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('');
+
+    const cmdWrap = $('kw-detail-cmd-wrap');
+    if (kw.commands && kw.commands.length) {
+      $('kw-detail-cmd').textContent = kw.commands.join('\n');
+      cmdWrap.classList.remove('hidden');
+    } else {
+      cmdWrap.classList.add('hidden');
+    }
+
+    const trapWrap = $('kw-detail-trap-wrap');
+    const trapTxt = isZh() ? (kw.trapZh || kw.trap || '') : (kw.trap || '');
+    if (trapTxt) {
+      $('kw-detail-trap').textContent = trapTxt;
+      trapWrap.classList.remove('hidden');
+    } else {
+      trapWrap.classList.add('hidden');
+    }
+
+    const linksBox = $('kw-detail-links');
+    linksBox.innerHTML = '';
+    const edges = (GRAPH.edges || []).filter((e) => e.source === kw.id || e.target === kw.id);
+    edges.forEach((e) => {
+      const otherId = e.source === kw.id ? e.target : e.source;
+      const other = getKwById(otherId);
+      if (!other) return;
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'kw-chip-btn';
+      const oTitle = isZh() ? (other.titleZh || other.title) : other.title;
+      const rel = isZh() ? (e.relZh || e.rel) : e.rel;
+      chip.textContent = `${oTitle} (${rel})`;
+      chip.addEventListener('click', () => {
+        activeKwId = other.id;
+        renderKwList();
+        renderKwDetail();
+      });
+      linksBox.appendChild(chip);
+    });
+
+    const relatedQs = QUESTIONS.filter((q) => Array.isArray(q.kwIds) && q.kwIds.includes(kw.id));
+    $('kw-related-q-count').textContent = isZh()
+      ? `${relatedQs.length} 道相關模擬試題`
+      : `${relatedQs.length} related exam question(s)`;
+    $('btn-kw-practice').disabled = relatedQs.length === 0;
+  }
+
+  function openKnowledgePoint(kwId) {
+    activeKwId = kwId;
+    switchView('kw');
+    const activeBtn = $('kw-list') && $('kw-list').querySelector('.kw-item.active');
+    if (activeBtn) activeBtn.scrollIntoView({ block: 'nearest' });
+  }
+
+  function launchKwPractice(kwId) {
+    const related = QUESTIONS.filter((q) => Array.isArray(q.kwIds) && q.kwIds.includes(kwId));
+    if (!related.length) return;
+    const kw = getKwById(kwId);
+    const label = kw ? `[${kw.id.toUpperCase()}] ${isZh() ? (kw.titleZh || kw.title) : kw.title}` : 'KW Drill';
+    kwReturnToQuiz = false;
+    switchView('practice');
+    startQuizSession(shuffle(related).slice(0, Math.min(25, related.length)), label);
+  }
+
+  function initGraphIfNeeded() {
+    if (graphInited || !GRAPH.nodes || !GRAPH.nodes.length) return;
+    graphInited = true;
+
+    const clusterCenters = {
+      fundamentals: { x: -240, y: -150 },
+      access: { x: 0, y: -210 },
+      connectivity: { x: 240, y: -140 },
+      services: { x: 240, y: 150 },
+      security: { x: 0, y: 210 },
+      automation: { x: -240, y: 150 }
+    };
+
+    const grouped = {};
+    GRAPH.nodes.forEach((n) => {
+      if (!grouped[n.domain]) grouped[n.domain] = [];
+      grouped[n.domain].push(n);
+    });
+
+    graphNodesSim = GRAPH.nodes.map((n) => {
+      const list = grouped[n.domain] || [n];
+      const idx = list.indexOf(n);
+      const angle = (idx / Math.max(1, list.length)) * Math.PI * 2;
+      const rad = 75 + (idx % 2) * 52;
+      const center = clusterCenters[n.domain] || { x: 0, y: 0 };
+      return {
+        ...n,
+        x: center.x + Math.cos(angle) * rad,
+        y: center.y + Math.sin(angle) * rad,
+        vx: 0,
+        vy: 0,
+        r: 9 + Math.min(8, (n.importance || 1) * 2.5)
+      };
+    });
+
+    // Run 90 lightweight force ticks to separate nodes cleanly before first paint
+    for (let step = 0; step < 90; step++) {
+      for (let i = 0; i < graphNodesSim.length; i++) {
+        for (let j = i + 1; j < graphNodesSim.length; j++) {
+          const a = graphNodesSim[i];
+          const b = graphNodesSim[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const d2 = dx * dx + dy * dy + 1;
+          const repulse = 1900 / d2;
+          const invD = 1 / Math.sqrt(d2);
+          a.vx -= dx * invD * repulse;
+          a.vy -= dy * invD * repulse;
+          b.vx += dx * invD * repulse;
+          b.vy += dy * invD * repulse;
+        }
+      }
+      (GRAPH.edges || []).forEach((e) => {
+        const a = graphNodesSim.find((n) => n.id === e.source);
+        const b = graphNodesSim.find((n) => n.id === e.target);
+        if (!a || !b) return;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const spring = (dist - 125) * 0.028;
+        a.vx += (dx / dist) * spring;
+        a.vy += (dy / dist) * spring;
+        b.vx -= (dx / dist) * spring;
+        b.vy -= (dy / dist) * spring;
+      });
+      graphNodesSim.forEach((n) => {
+        const center = clusterCenters[n.domain] || { x: 0, y: 0 };
+        n.vx += (center.x - n.x) * 0.012;
+        n.vy += (center.y - n.y) * 0.012;
+        n.x += Math.max(-8, Math.min(8, n.vx * 0.55));
+        n.y += Math.max(-8, Math.min(8, n.vy * 0.55));
+        n.vx *= 0.65;
+        n.vy *= 0.65;
+      });
+    }
+
+    renderGraphDomainPills();
+    bindGraphCanvasEvents();
+  }
+
+  function renderGraphDomainPills() {
+    const box = $('graph-domain-pills');
+    if (!box) return;
+    const tr = t();
+    box.innerHTML = '';
+    const allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'graph-pill' + (graphDomainFilter === 'all' ? ' active' : '');
+    allBtn.textContent = tr.allDomains;
+    allBtn.addEventListener('click', () => {
+      graphDomainFilter = 'all';
+      renderGraphDomainPills();
+      requestGraphDraw();
+    });
+    box.appendChild(allBtn);
+
+    DOMAINS.forEach((d) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'graph-pill' + (graphDomainFilter === d.id ? ' active' : '');
+      btn.innerHTML = `<span class="graph-pill-dot" style="background:${d.color};"></span><span>${escapeHtml(domainShort(d))}</span>`;
+      btn.addEventListener('click', () => {
+        graphDomainFilter = d.id;
+        renderGraphDomainPills();
+        requestGraphDraw();
+      });
+      box.appendChild(btn);
+    });
+  }
+
+  function resizeGraphCanvas() {
+    const canvas = $('knowledge-canvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (rect.width > 0 && rect.height > 0) {
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+    }
+  }
+
+  function getVisibleGraphIds() {
+    const query = ($('graph-search-input') ? $('graph-search-input').value : '').trim().toLowerCase();
+    const neighborIds = new Set([activeGraphNodeId]);
+    (GRAPH.edges || []).forEach((e) => {
+      if (e.source === activeGraphNodeId) neighborIds.add(e.target);
+      if (e.target === activeGraphNodeId) neighborIds.add(e.source);
+    });
+    const visible = new Set();
+    graphNodesSim.forEach((n) => {
+      if (graphDomainFilter !== 'all' && n.domain !== graphDomainFilter && !neighborIds.has(n.id)) return;
+      if (graphLocalOnly && !neighborIds.has(n.id)) return;
+      if (query) {
+        const kw = getKwById(n.id);
+        const txt = [n.id, n.label, n.labelZh || '', kw ? kw.title : '', kw ? (kw.titleZh || '') : ''].join(' ').toLowerCase();
+        if (!txt.includes(query)) return;
+      }
+      visible.add(n.id);
+    });
+    return { visible, neighborIds };
+  }
+
+  function requestGraphDraw() {
+    if (graphAnimFrame) cancelAnimationFrame(graphAnimFrame);
+    graphAnimFrame = requestAnimationFrame(drawKnowledgeGraph);
+  }
+
+  function drawKnowledgeGraph() {
+    const canvas = $('knowledge-canvas');
+    if (!canvas || !graphNodesSim.length) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const isLight = state.theme === 'light';
+    const { visible, neighborIds } = getVisibleGraphIds();
+
+    ctx.save();
+    ctx.translate(w / 2 + graphCam.x, h / 2 + graphCam.y);
+    ctx.scale(graphCam.scale, graphCam.scale);
+
+    // Draw Obsidian-style links
+    (GRAPH.edges || []).forEach((e) => {
+      if (!visible.has(e.source) || !visible.has(e.target)) return;
+      const a = graphNodesSim.find((n) => n.id === e.source);
+      const b = graphNodesSim.find((n) => n.id === e.target);
+      if (!a || !b) return;
+      const touchesActive = e.source === activeGraphNodeId || e.target === activeGraphNodeId;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineWidth = touchesActive ? 2.2 : 1;
+      ctx.strokeStyle = touchesActive
+        ? 'rgba(6, 182, 212, 0.85)'
+        : (isLight ? 'rgba(100, 116, 139, 0.25)' : 'rgba(148, 163, 184, 0.22)');
+      ctx.stroke();
+
+      if (graphShowEdgeLabels && touchesActive) {
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        const lbl = isZh() ? (e.relZh || e.rel) : e.rel;
+        ctx.font = '600 10px system-ui, sans-serif';
+        ctx.fillStyle = isLight ? '#0f172a' : '#e2e8f0';
+        ctx.textAlign = 'center';
+        ctx.fillText(lbl, mx, my - 4);
+      }
+    });
+
+    // Draw nodes
+    graphNodesSim.forEach((n) => {
+      if (!visible.has(n.id)) return;
+      const d = domainInfo(n.domain);
+      const isSelected = n.id === activeGraphNodeId;
+      const isNeighbor = neighborIds.has(n.id);
+      const alpha = isSelected || isNeighbor ? 1 : 0.42;
+
+      ctx.globalAlpha = alpha;
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r + 7, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.25)';
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = d.color;
+      ctx.fill();
+      ctx.lineWidth = isSelected ? 3 : 1.5;
+      ctx.strokeStyle = isSelected ? '#ffffff' : (isLight ? '#0f172a' : '#020617');
+      ctx.stroke();
+
+      const label = isZh() ? (n.labelZh || n.label) : n.label;
+      ctx.font = (isSelected ? '700 12px ' : '600 11px ') + 'system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = isLight ? '#0f172a' : '#f8fafc';
+      ctx.fillText(label, n.x, n.y + n.r + 14);
+      ctx.globalAlpha = 1;
+    });
+
+    ctx.restore();
+  }
+
+  function screenToGraph(clientX, clientY) {
+    const canvas = $('knowledge-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const sx = clientX - rect.left - rect.width / 2 - graphCam.x;
+    const sy = clientY - rect.top - rect.height / 2 - graphCam.y;
+    return { x: sx / graphCam.scale, y: sy / graphCam.scale };
+  }
+
+  function hitTestGraphNode(gx, gy) {
+    const { visible } = getVisibleGraphIds();
+    for (let i = graphNodesSim.length - 1; i >= 0; i--) {
+      const n = graphNodesSim[i];
+      if (!visible.has(n.id)) continue;
+      const dx = n.x - gx;
+      const dy = n.y - gy;
+      if (dx * dx + dy * dy <= (n.r + 12) * (n.r + 12)) return n;
+    }
+    return null;
+  }
+
+  function bindGraphCanvasEvents() {
+    const canvas = $('knowledge-canvas');
+    if (!canvas || canvas.dataset.bound) return;
+    canvas.dataset.bound = '1';
+
+    let mode = null; // 'pan' | 'drag'
+    let dragNode = null;
+    let lastX = 0;
+    let lastY = 0;
+    let moved = false;
+
+    const startDrag = (cx, cy) => {
+      const pt = screenToGraph(cx, cy);
+      const hit = hitTestGraphNode(pt.x, pt.y);
+      lastX = cx;
+      lastY = cy;
+      moved = false;
+      if (hit) {
+        mode = 'drag';
+        dragNode = hit;
+      } else {
+        mode = 'pan';
+        dragNode = null;
+      }
+    };
+
+    const moveDrag = (cx, cy) => {
+      if (!mode) return;
+      const dx = cx - lastX;
+      const dy = cy - lastY;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+      lastX = cx;
+      lastY = cy;
+      if (mode === 'drag' && dragNode) {
+        dragNode.x += dx / graphCam.scale;
+        dragNode.y += dy / graphCam.scale;
+      } else if (mode === 'pan') {
+        graphCam.x += dx;
+        graphCam.y += dy;
+      }
+      requestGraphDraw();
+    };
+
+    const endDrag = (cx, cy) => {
+      if (!moved && cx !== undefined) {
+        const pt = screenToGraph(cx, cy);
+        const hit = hitTestGraphNode(pt.x, pt.y);
+        if (hit) {
+          activeGraphNodeId = hit.id;
+          renderGraphInspector();
+          requestGraphDraw();
+        }
+      }
+      mode = null;
+      dragNode = null;
+    };
+
+    canvas.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup', (e) => endDrag(e.clientX, e.clientY));
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        startDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && mode) {
+        e.preventDefault();
+        moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchend', (e) => {
+      const t0 = e.changedTouches[0];
+      endDrag(t0 ? t0.clientX : undefined, t0 ? t0.clientY : undefined);
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 0.89;
+      graphCam.scale = Math.max(0.45, Math.min(2.6, graphCam.scale * factor));
+      requestGraphDraw();
+    }, { passive: false });
+
+    window.addEventListener('resize', () => {
+      if (currentView === 'graph') {
+        resizeGraphCanvas();
+        requestGraphDraw();
+      }
+    });
+  }
+
+  function renderGraphInspector() {
+    const node = GRAPH.nodes.find((n) => n.id === activeGraphNodeId) || GRAPH.nodes[0];
+    if (!node || !$('graph-node-id')) return;
+    activeGraphNodeId = node.id;
+    const kw = getKwById(node.id);
+    const d = domainInfo(node.domain);
+
+    $('graph-node-id').textContent = node.id.toUpperCase();
+    $('graph-node-domain').textContent = domainName(d);
+    $('graph-node-domain').style.borderColor = d.color;
+    $('graph-node-title').textContent = kw ? (isZh() ? (kw.titleZh || kw.title) : kw.title) : (isZh() ? (node.labelZh || node.label) : node.label);
+    $('graph-node-brief').textContent = kw ? (isZh() ? (kw.summaryZh || kw.summary) : kw.summary) : '';
+
+    const connBox = $('graph-connections-list');
+    connBox.innerHTML = '';
+    const edges = (GRAPH.edges || []).filter((e) => e.source === node.id || e.target === node.id);
+    if (!edges.length) {
+      connBox.innerHTML = `<div class="muted">${isZh() ? '暫無直接關聯節點。' : 'No direct edges.'}</div>`;
+    } else {
+      edges.forEach((e) => {
+        const otherId = e.source === node.id ? e.target : e.source;
+        const other = GRAPH.nodes.find((x) => x.id === otherId);
+        const otherKw = getKwById(otherId);
+        if (!other) return;
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'graph-conn-item';
+        const oTitle = otherKw ? (isZh() ? (otherKw.titleZh || otherKw.title) : otherKw.title) : (isZh() ? (other.labelZh || other.label) : other.label);
+        const rel = isZh() ? (e.relZh || e.rel) : e.rel;
+        const why = isZh() ? (e.whyZh || e.why) : e.why;
+        item.innerHTML = `
+          <div class="graph-conn-head"><span>${escapeHtml(oTitle)}</span><span class="badge">${escapeHtml(otherId.toUpperCase())}</span></div>
+          <div class="graph-conn-rel">${escapeHtml(rel)}</div>
+          <div class="graph-conn-why">${escapeHtml(why)}</div>
+        `;
+        item.addEventListener('click', () => {
+          activeGraphNodeId = other.id;
+          renderGraphInspector();
+          requestGraphDraw();
+        });
+        connBox.appendChild(item);
+      });
+    }
+  }
+
+  function openInGraph(kwId) {
+    initGraphIfNeeded();
+    if (kwId) activeGraphNodeId = kwId;
+    const simNode = graphNodesSim.find((n) => n.id === activeGraphNodeId);
+    if (simNode) {
+      graphCam.x = -simNode.x * graphCam.scale;
+      graphCam.y = -simNode.y * graphCam.scale;
+    }
+    switchView('graph');
+  }
+
   // ==================== INIT & EVENTS ====================
   function populateDomainSelects() {
     DOMAINS.forEach((d) => {
-      ['quiz-domain-select', 'fc-domain-filter', 'new-card-domain', 'notes-domain-select'].forEach((id) => {
+      ['quiz-domain-select', 'fc-domain-filter', 'new-card-domain', 'notes-domain-select', 'kw-domain-select'].forEach((id) => {
+        if (!$(id)) return;
         const opt = document.createElement('option');
         opt.value = d.id;
         opt.textContent = domainName(d);
         $(id).appendChild(opt);
       });
     });
+    populateKwChapterSelect();
     for (let c = 8; c <= 32; c++) {
       const opt = document.createElement('option');
       opt.value = String(c);
@@ -1217,6 +1871,85 @@
     $('exhibit-modal').addEventListener('click', (e) => {
       if (e.target.id === 'exhibit-modal') $('exhibit-modal').classList.add('hidden');
     });
+    $('btn-retry-exhibit').addEventListener('click', () => {
+      const img = $('quiz-exhibit-img');
+      if (img && img.dataset.baseSrc) {
+        img.dataset.retried = '';
+        setImgSrc(img, img.dataset.baseSrc + '?t=' + Date.now(), $('quiz-exhibit-error'), $('quiz-exhibit-error-text'));
+      }
+    });
+
+    // Knowledge Point (KW) bindings
+    $('kw-search-input').addEventListener('input', renderKwList);
+    $('kw-chapter-select').addEventListener('change', () => {
+      renderKwList();
+      renderKwDetail();
+    });
+    $('kw-domain-select').addEventListener('change', () => {
+      renderKwList();
+      renderKwDetail();
+    });
+    $('btn-kw-mark').addEventListener('click', () => {
+      if (!activeKwId) return;
+      state.kwReviewed[activeKwId] = !state.kwReviewed[activeKwId];
+      if (state.kwReviewed[activeKwId]) touchStudyStreak(state);
+      saveState(state);
+      renderKwList();
+      renderKwDetail();
+    });
+    $('btn-kw-practice').addEventListener('click', () => {
+      if (activeKwId) launchKwPractice(activeKwId);
+    });
+    $('btn-kw-to-graph').addEventListener('click', () => openInGraph(activeKwId));
+    $('btn-kw-back-quiz').addEventListener('click', () => {
+      kwReturnToQuiz = false;
+      switchView('practice');
+    });
+
+    // All-in-one Knowledge Map bindings
+    $('graph-search-input').addEventListener('input', () => {
+      const q = $('graph-search-input').value.trim().toLowerCase();
+      if (q) {
+        const hit = graphNodesSim.find((n) => {
+          const kw = getKwById(n.id);
+          return [n.id, n.label, n.labelZh || '', kw ? kw.title : '', kw ? (kw.titleZh || '') : ''].join(' ').toLowerCase().includes(q);
+        });
+        if (hit) {
+          activeGraphNodeId = hit.id;
+          renderGraphInspector();
+        }
+      }
+      requestGraphDraw();
+    });
+    $('btn-graph-local').addEventListener('click', () => {
+      graphLocalOnly = !graphLocalOnly;
+      $('btn-graph-local').classList.toggle('btn-primary', graphLocalOnly);
+      $('btn-graph-local').classList.toggle('btn-ghost', !graphLocalOnly);
+      requestGraphDraw();
+    });
+    $('btn-graph-labels').addEventListener('click', () => {
+      graphShowEdgeLabels = !graphShowEdgeLabels;
+      $('btn-graph-labels').classList.toggle('btn-primary', graphShowEdgeLabels);
+      $('btn-graph-labels').classList.toggle('btn-ghost', !graphShowEdgeLabels);
+      requestGraphDraw();
+    });
+    $('btn-graph-fit').addEventListener('click', () => {
+      graphCam = { x: 0, y: 0, scale: 1 };
+      requestGraphDraw();
+    });
+    $('btn-graph-zoom-in').addEventListener('click', () => {
+      graphCam.scale = Math.min(2.6, graphCam.scale * 1.2);
+      requestGraphDraw();
+    });
+    $('btn-graph-zoom-out').addEventListener('click', () => {
+      graphCam.scale = Math.max(0.45, graphCam.scale * 0.83);
+      requestGraphDraw();
+    });
+    $('btn-graph-open-kw').addEventListener('click', () => {
+      kwReturnToQuiz = false;
+      openKnowledgePoint(activeGraphNodeId);
+    });
+    $('btn-graph-practice').addEventListener('click', () => launchKwPractice(activeGraphNodeId));
     $('btn-prev-q').addEventListener('click', () => {
       if (quiz && quiz.index > 0) {
         quiz.index--;
@@ -1389,7 +2122,9 @@
 
   function registerSW() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('SW registration skipped:', err));
+      navigator.serviceWorker.register('./sw.js').then((reg) => {
+        if (reg && reg.update) reg.update().catch(() => {});
+      }).catch((err) => console.warn('SW registration skipped:', err));
     }
   }
 
